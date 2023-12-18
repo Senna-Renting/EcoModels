@@ -1,13 +1,12 @@
-import numpy as np 
-import scipy.stats
-import random
+import numpy as np
+import pygame
 
 class Plant():
     def __init__(self, x, y, world = None):
         self.x = x
         self.y = y
-        self.water_uptake_rate = 20
-        self.water_tolerance = (6,30) # outside of this range the plant immediately dies
+        self.water_uptake_rate = 10
+        self.water_tolerance = (3,30) # outside of this range the plant immediately dies
         self.reproduce_rate = 1
         self.disperse_dist = np.random.normal
         self.dist_params = [0,5,2]
@@ -50,13 +49,14 @@ class Source():
         self.type = s_type
         self.x = x
         self.y = y
-        self.refill_rate = 5
+        self.refill_rate = 50
         self.amount = amount
+        self.max_amount = amount
         self.world = world
     def __str__(self):
         return f"Source ({self.x},{self.y},{self.amount})"
     def step(self):
-        self.amount += self.refill_rate 
+        self.amount = min(self.max_amount, self.amount+self.refill_rate)
     def empty(self,amount):
         self.amount -= amount
     def uptake_factor(self,dist):
@@ -96,6 +96,8 @@ class World():
         [source.step() for source in self.sources]
         [spec.step() for spec in self.species]
 
+
+
 def simulation():
     species = [Plant(1,5), Plant(3,4), Plant(5,1), Plant(2,2)]
     sources = [Source("water", 2, 2, 20)]
@@ -107,4 +109,49 @@ def simulation():
 
 
 if __name__ == "__main__":
-    simulation()
+    #simulation()
+    # model setup
+    species = [Plant(1,5), Plant(3,4), Plant(5,1), Plant(2,2)]
+    sources = [Source("water", 4, 4, 500), Source("water", -8, -8, 500)]
+    w = World(species=species, sources=sources)
+
+    # pygame setup
+    pygame.init()
+    WIDTH = 500
+    HEIGHT = 400
+    SCALE = 10
+    x_origin = WIDTH/2
+    y_origin = HEIGHT/2
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    clock = pygame.time.Clock()
+    start_ticks=pygame.time.get_ticks()
+    running = True
+    while running:
+        # poll for events
+        # pygame.QUIT event means the user clicked X to close your window
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        # fill the screen with a color to wipe away anything from last frame
+        screen.fill("white")
+
+        for spec in w.get_species():
+            pos = spec.position()
+            x = x_origin+pos[0]*SCALE
+            y = y_origin+pos[1]*SCALE
+            pygame.draw.circle(screen, (0,255,0), (x,y), 0.5*SCALE)
+        for source in w.get_sources():
+            pos = source.position()
+            x = x_origin+pos[0]*SCALE
+            y = y_origin+pos[1]*SCALE
+            pygame.draw.circle(screen, (0,0,255), (x,y), 0.5*SCALE)
+        #[pygame.draw.circle(screen, (0,1,0), x_origin+spec.position()[0]*SCALE) for spec in w.get_species()]
+        if (pygame.time.get_ticks()-start_ticks)%60 == 0:
+            w.step()
+        # flip() the display to put your work on screen
+        pygame.display.flip()
+
+        clock.tick(60)  # limits FPS to 60
+
+    pygame.quit()
